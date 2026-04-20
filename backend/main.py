@@ -31,9 +31,14 @@ class TranscribeRequest(BaseModel):
     language: str = "es"
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def index():
     return HTMLResponse((BASE_DIR / "index.html").read_text(encoding="utf-8"))
+
+
+@app.get("/ping")
+def ping():
+    return {"status": "ok"}
 
 
 @app.post("/transcribe")
