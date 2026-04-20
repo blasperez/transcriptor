@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Transcriptor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: white; border-radius: 12px; padding: 32px; max-width: 640px; width: 100%; box-shadow: 0 2px 16px rgba(0,0,0,0.1); }
+  h1 { font-size: 22px; margin-bottom: 6px; color: #111; }
+  .sub { color: #666; font-size: 14px; margin-bottom: 24px; }
+  label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #333; }
+  input[type="url"] { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+  input[type="url"]:focus { border-color: #4f8ef7; }
+  select { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: white; cursor: pointer; }
+  .row { display: flex; gap: 10px; margin-top: 14px; align-items: flex-end; }
+  button#transcribe-btn { flex: 1; padding: 11px; background: #4f8ef7; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+  button#transcribe-btn:hover { background: #3a7de0; }
+  button#transcribe-btn:disabled { background: #aac4f7; cursor: not-allowed; }
+  #status { margin-top: 14px; font-size: 13px; color: #e07b00; min-height: 18px; }
+  #result { display: none; margin-top: 20px; }
+  #result .share-url { background: #eef4ff; border: 1px solid #c0d4fb; border-radius: 8px; padding: 12px; font-size: 13px; word-break: break-all; }
+  #result .share-url a { color: #2563eb; font-weight: bold; }
+  #result .copy-btn { margin-top: 8px; padding: 6px 14px; background: #e8f0fe; color: #2563eb; border: 1px solid #c0d4fb; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  #result .copy-btn:hover { background: #d2e3fc; }
+  #transcript-preview { margin-top: 16px; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; max-height: 260px; overflow-y: auto; color: #333; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #e07b00; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎬 Video Transcriptor</h1>
+  <p class="sub">TikTok, Instagram, Facebook, YouTube y más</p>
+
+  <label for="video-url">URL del video</label>
+  <input type="url" id="video-url" placeholder="https://www.tiktok.com/@usuario/video/..." />
+
+  <div class="row">
+    <div>
+      <label for="lang">Idioma</label>
+      <select id="lang">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="auto">Auto-detectar</option>
+      </select>
+    </div>
+    <button id="transcribe-btn">Transcribir</button>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="result">
+    <div class="share-url">
+      📎 URL para Gemini: <a id="share-link" href="#" target="_blank"></a>
+      <br>
+      <button class="copy-btn" id="copy-url-btn">Copiar URL</button>
+    </div>
+    <div id="transcript-preview"></div>
+  </div>
+</div>
+
+<script>
+  const btn = document.getElementById("transcribe-btn");
+  const status = document.getElementById("status");
+  const result = document.getElementById("result");
+
+  btn.addEventListener("click", async () => {
+    const url = document.getElementById("video-url").value.trim();
+    const lang = document.getElementById("lang").value;
+
+    if (!url) { setStatus("⚠️ Ingresa una URL"); return; }
+
+    btn.disabled = true;
+    setStatus('<span class="spinner"></span>Descargando y transcribiendo… puede tardar 30-60 segundos');
+    result.style.display = "none";
+
+    try {
+      const res = await fetch("/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, language: lang }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Error del servidor");
+      }
+
+      const data = await res.json();
+      const shareUrl = `${location.origin}/t/${data.id}`;
+
+      document.getElementById("share-link").href = shareUrl;
+      document.getElementById("share-link").textContent = shareUrl;
+      document.getElementById("transcript-preview").textContent = data.transcript;
+      result.style.display = "block";
+      setStatus("✅ ¡Listo!");
+    } catch (e) {
+      setStatus("❌ " + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("copy-url-btn").addEventListener("click", () => {
+    const url = document.getElementById("share-link").href;
+    navigator.clipboard.writeText(url).then(() => {
+      document.getElementById("copy-url-btn").textContent = "✅ Copiado";
+      setTimeout(() => document.getElementById("copy-url-btn").textContent = "Copiar URL", 2000);
+    });
+  });
+
+  function setStatus(html) {
+    status.innerHTML = html;
+  }
+</script>
+</body>
+</html>
