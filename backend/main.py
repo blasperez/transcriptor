@@ -86,6 +86,15 @@ def transcribe(req: TranscribeRequest):
     return {"id": tid, "transcript": text}
 
 
+@app.get("/go", response_class=HTMLResponse)
+def transcribe_direct(url: str, language: str = "es"):
+    req = TranscribeRequest(url=url, language=language)
+    data = transcribe(req)
+    tid = data["id"]
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/t/{tid}", status_code=302)
+
+
 @app.get("/t/{tid}", response_class=HTMLResponse)
 def view_transcription(tid: str):
     entry = transcriptions.get(tid)
