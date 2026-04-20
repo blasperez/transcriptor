@@ -2,11 +2,14 @@ import os
 import uuid
 import tempfile
 import subprocess
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from groq import Groq
+
+BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="Video Transcriptor")
 
@@ -30,7 +33,7 @@ class TranscribeRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return HTMLResponse(open("index.html").read())
+    return HTMLResponse((BASE_DIR / "index.html").read_text(encoding="utf-8"))
 
 
 @app.post("/transcribe")
@@ -87,7 +90,11 @@ def transcribe(req: TranscribeRequest):
 def view_transcription(tid: str):
     entry = transcriptions.get(tid)
     if not entry:
-        raise HTTPException(status_code=404, detail="Transcripción no encontrada")
+        return HTMLResponse("""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Expirada</title><style>body{font-family:Arial,sans-serif;max-width:600px;margin:60px auto;padding:0 20px;text-align:center}</style></head>
+<body><h2>⏱️ Transcripción expirada</h2>
+<p>El servidor se reinició y la transcripción se perdió.<br>Vuelve a transcribir el video.</p>
+<a href="/">← Volver al inicio</a></body></html>""", status_code=410)
 
     text_escaped = entry["text"].replace("<", "&lt;").replace(">", "&gt;")
     url_escaped = entry["url"].replace("<", "&lt;").replace(">", "&gt;")
